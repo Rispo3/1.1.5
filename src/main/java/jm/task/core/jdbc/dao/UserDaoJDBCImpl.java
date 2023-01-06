@@ -9,56 +9,69 @@ import java.sql.*;
 import java.util.List;
 
 public class UserDaoJDBCImpl implements UserDao {
-    private static final Connection connection = Util.getConnection();
-
+    private final String tableName = "users";
     public UserDaoJDBCImpl() {
     }
 
     public void createUsersTable() {
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS users " +
-                    "(id BIGINT, name VARCHAR(255), last_name VARCHAR(255), age INT)");
+        try (Connection connection = Util.getConnection()) {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS " + tableName +
+                    " (id BIGINT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), last_name VARCHAR(255), age TINYINT)");
+            connection.commit();
         } catch (SQLException e) {
+            rollback();
             e.printStackTrace();
         }
     }
 
     public void dropUsersTable() {
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection = Util.getConnection()) {
+            Statement statement = connection.createStatement();
             statement.executeUpdate("DROP TABLE IF EXISTS users");
+            connection.commit();
         } catch (SQLException e) {
+            rollback();
             e.printStackTrace();
         }
     }
 
     public void saveUser(String name, String lastName, byte age) {
-        try (PreparedStatement pstm = connection.prepareStatement("INSERT INTO users (name, last_name, age) VALUES (?, ?, ?)")) {
+        try (Connection connection = Util.getConnection()) {
+            PreparedStatement pstm = connection.prepareStatement("INSERT INTO " + tableName + " (name, last_name, age) VALUES (?, ?, ?)");
             pstm.setString(1, name);
             pstm.setString(2, lastName);
             pstm.setByte(3, age);
             pstm.executeUpdate();
+            connection.commit();
         } catch (SQLException e) {
+            rollback();
             e.printStackTrace();
         }
     }
 
     public void removeUserById(long id) {
-        try (PreparedStatement pstm = connection.prepareStatement("DELETE FROM users WHERE id = ?")) {
+        try (Connection connection = Util.getConnection()) {
+            PreparedStatement pstm = connection.prepareStatement("DELETE FROM " + tableName + " WHERE id = ?");
             pstm.setLong(1, id);
             pstm.executeUpdate();
+            connection.commit();
         } catch (SQLException e) {
+            rollback();
             e.printStackTrace();
         }
     }
 
     public List<User> getAllUsers() {
         List<User> users = new ArrayList<>();
-        try (ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM users")) {
+        try (Connection connection = Util.getConnection()) {
+            ResultSet resultSet = connection.createStatement().executeQuery("SELECT * FROM " + tableName);
             while (resultSet.next()) {
                 User user = new User(resultSet.getString("name"),
                         resultSet.getString("last_name"), resultSet.getByte("age"));
                 user.setId(resultSet.getLong("id"));
                 users.add(user);
+                connection.commit();
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -68,8 +81,18 @@ public class UserDaoJDBCImpl implements UserDao {
     }
 
     public void cleanUsersTable() {
-        try (Statement statement = connection.createStatement()) {
-            statement.executeUpdate("TRUNCATE TABLE users");
+        try (Connection connection = Util.getConnection()) {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + tableName);
+            connection.commit();
+        } catch (SQLException e) {
+            rollback();
+            e.printStackTrace();
+        }
+    }
+    private void rollback() {
+        try(Connection connection = Util.getConnection()){
+            connection.rollback();
         } catch (SQLException e) {
             e.printStackTrace();
         }
